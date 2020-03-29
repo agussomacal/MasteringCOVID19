@@ -41,7 +41,9 @@ class DataForModel:
         return np.sort(self.data[self.integration_variable_column_name].values)
 
     def get_observed_variables(self, model_var_names_as_columns=True):
+        index = self.data[self.integration_variable_column_name]
         data = self.data.loc[:, self.model_vars_map2columns.values()]
         if model_var_names_as_columns:
             data.columns = [mcn for cn, mcn in zip(data.columns, self.model_vars_map2columns.keys())]
+        data.index = index
         return data
