@@ -13,15 +13,16 @@ from src.metrics import mse
 
 class MasterFitter:
     def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, metric=mse, iterations_cma=1000,
-                 sigma_cma=1, popsize=15):
+                 sigma_cma=1, popsize=15, restarts=10):
         self.data = data
         self.model_class = model_class
         self.initial_condition_dict = initial_condition_dict
 
-        self.fitted_params = None
+        self.fitted_params = {}
 
         self.metric = metric
 
+        self.restarts = restarts
         self.sigma_cma = sigma_cma
         self.popsize = popsize
         self.iterations_cma = iterations_cma
@@ -31,12 +32,13 @@ class MasterFitter:
             init_params = self.get_init_params()
 
         objective_func = self.get_objective_func()
-        self.fitted_params, _ = cma.fmin2(objective_function=objective_func,
-                                          x0=list(init_params.values()),
-                                          sigma0=self.sigma_cma,
-                                          options={'ftarget': -np.Inf, 'popsize': self.popsize,
-                                                   'maxfevals': self.popsize * self.iterations_cma})
-
+        fitted_params, _ = cma.fmin2(objective_function=objective_func,
+                                     x0=list(init_params.values()),
+                                     restarts=self.restarts,
+                                     sigma0=self.sigma_cma,
+                                     options={'ftarget': -np.Inf, 'popsize': self.popsize,
+                                              'maxfevals': self.popsize * self.iterations_cma})
+        self.fitted_params = OrderedDict([(k, v) for k, v in zip(init_params.keys(), fitted_params)])
         return self.fitted_params
 
     def get_initial_condition2integrate(self):
@@ -55,18 +57,31 @@ class MasterFitter:
 
         return obj_func
 
-    def get_particular_solution(self, y0, params, eqparam_names):
+    def get_particular_solution(self, y0, params, eqparam_names, t=None):
         solution = odeint(self.model_class(*params).get_equation_for_odeint(), y0=y0,
-                          t=self.data.get_values_of_integration_variable())
+                          t=self.data.get_values_of_integration_variable() if t is None else t)
         solution = pd.DataFrame(solution, columns=eqparam_names,
                                 index=self.data.data[self.data.integration_variable_column_name])
         return solution
 
-    def predict(self):
+    def predict(self, t=None):
         eqparam_names = self.model_class.get_eqparam_names(self.model_class, without_time=True)
         y0 = self.get_initial_condition2integrate()
-        solution = self.get_particular_solution(y0, self.fitted_params, eqparam_names)
+        solution = self.get_particular_solution(y0, list(self.fitted_params.values()), eqparam_names, t)
         return solution
+
+    def get_data4plot(self, t=None):
+        observed_data = self.data.get_observed_variables(model_var_names_as_columns=True)
+        solution = self.predict(t)
+        plotting_dict = dict()
+        for i, var_name in enumerate(solution):
+            plotting_dict[var_name] = dict()
+            plotting_dict[var_name]['prediction'] = pd.Series(solution[var_name].values, name=var_name,
+                                                              index=solution.index)
+            if var_name in observed_data.columns:
+                plotting_dict[var_name]['real data'] = pd.Series(observed_data[var_name].values, name=var_name,
+                                                                 index=observed_data.index)
+        return plotting_dict
 
     def plot(self):
         observed_data = self.data.get_observed_variables(model_var_names_as_columns=True)
