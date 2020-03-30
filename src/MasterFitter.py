@@ -58,10 +58,9 @@ class MasterFitter:
         return obj_func
 
     def get_particular_solution(self, y0, params, eqparam_names, t=None):
-        solution = odeint(self.model_class(*params).get_equation_for_odeint(), y0=y0,
-                          t=self.data.get_values_of_integration_variable() if t is None else t)
-        solution = pd.DataFrame(solution, columns=eqparam_names,
-                                index=self.data.data[self.data.integration_variable_column_name])
+        t = self.data.get_values_of_integration_variable() if t is None else t
+        solution = odeint(self.model_class(*params).get_equation_for_odeint(), y0=y0, t=t)
+        solution = pd.DataFrame(solution, columns=eqparam_names, index=t)
         return solution
 
     def predict(self, t=None):
