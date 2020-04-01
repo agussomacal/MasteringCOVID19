@@ -41,7 +41,7 @@ class DataForModel:
                             model_vars_map2columns=self.model_vars_map2columns)
 
     def get_initial_condition_for_integration(self, initial_condition_dict: Dict):
-        t0_ix = self.data[self.integration_variable_column_name].argmin()
+        t0_ix = self.data[self.integration_variable_column_name].idxmin()
         for k, v in initial_condition_dict.items():
             if v is None:
                 assert k in self.model_vars_map2columns.keys(), 'there should be a representation in map'

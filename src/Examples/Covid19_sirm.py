@@ -1,22 +1,26 @@
+from collections import OrderedDict
+
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
 
 from src import config
-from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel, UNUSE_VARIABLE, CATEGORY_VARIABLE
-from src.MasterFitter import MasterFitter
+from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel, CATEGORY_VARIABLE
+from src.MasterFitters.GeneticMasterFitter import GeneticMasterFitter
+from src.MasterFitters.GradientMasterFitter import GradientMasterFitter
 from src.Models.SIRM import SIRM
-from src.Models.SIR_model import SIR
 from src.config import check_create_path
 from src.metrics import mse
 
+extra_name = '_grad'
+MFitter = GradientMasterFitter  # GeneticMasterFitter
 model_class = SIRM
 extra_future_predict = 0.3
-min_infected = 10
+min_infected = 50
 
-contry_pop_dict = {'Italy': 60*1e6, 'France': 67*1e6, 'Argentina': 40*1e6, 'Spain': 47*1e6}
+contry_pop_dict = {'Italy': 60 * 1e6, 'France': 67 * 1e6, 'Argentina': 40 * 1e6, 'Spain': 47 * 1e6}
 model_vars_map2columns = {'R': 'recovered', 'I': 'confirmed', 'M': 'deaths'}
-init_params = None  # {'a': 0.01, 'b':, 'c', 'd', 'm'}
+init_params = OrderedDict([('b', 0.001), ('d', 0.04), ('m', 0.02)])
 initial_condition_dict = {'S': None, 'I': None, 'R': None, 'M': None}
 
 columns_specifications = {'confirmed': MODEL_VARIABLE,
@@ -69,15 +73,30 @@ for country in contry_pop_dict.keys():
                         model_vars_map2columns=model_vars_map2columns)
 
     initial_condition_dict['S'] = contry_pop_dict[country]
-    master_fitter = MasterFitter(
+    master_fitter = GeneticMasterFitter(
         data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
         model_class=model_class,
         initial_condition_dict=initial_condition_dict,
-        metric=mse, iterations_cma=1000000, sigma_cma=1, popsize=15, restarts=5)
+        metric=mse,
+        iterations_cma=1000000,
+        sigma_cma=1,
+        popsize=15,
+        restarts=5
+    )
+    coefs = master_fitter.fit_model(init_params=init_params)
+    init_params = coefs#{'b': 0.001, 'd': 0.04, 'm': 0.02}
+
+    master_fitter = MFitter(
+        data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
+        model_class=model_class,
+        initial_condition_dict=initial_condition_dict,
+        metric=mse,
+        maxiter=1000
+    )
     coefs = master_fitter.fit_model(init_params=init_params)
 
     t = data.get_values_of_integration_variable()
-    dict4plot = master_fitter.get_data4plot(t=np.arange(t.min(), t.max() + (t.max()-t.min())*extra_future_predict))
+    dict4plot = master_fitter.get_data4plot(t=np.arange(t.min(), t.max() + (t.max() - t.min()) * extra_future_predict))
 
     fig, ax = plt.subplots(nrows=1, ncols=len(dict4plot), figsize=(6 * len(dict4plot), 6))
     plt.suptitle('{} model params: {}'.format(country, {k: np.round(v, decimals=4) for k, v in coefs.items()}))
@@ -91,5 +110,5 @@ for country in contry_pop_dict.keys():
         ax[i].set_xlabel(d['prediction'].index.name)
         ax[i].set_ylabel(var_name)
         ax[i].set_yscale('log')
-    plt.savefig('{}/{}.png'.format(check_create_path(config.results_dir, model_class.__name__), country))
+    plt.savefig('{}/{}.png'.format(check_create_path(config.results_dir, model_class.__name__ + extra_name), country))
     plt.close()

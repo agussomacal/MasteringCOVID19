@@ -2,18 +2,14 @@ from collections import OrderedDict
 from typing import Callable, Dict
 
 import matplotlib.pylab as plt
-import cma
-import numpy as np
 import pandas as pd
 from scipy.integrate import odeint
 
 from src.DataManager import DataForModel
-from src.metrics import mse
 
 
 class MasterFitter:
-    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, metric=mse, iterations_cma=1000,
-                 sigma_cma=1, popsize=15, restarts=10):
+    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, metric: Callable):
         self.data = data
         self.model_class = model_class
         self.initial_condition_dict = initial_condition_dict
@@ -22,23 +18,15 @@ class MasterFitter:
 
         self.metric = metric
 
-        self.restarts = restarts
-        self.sigma_cma = sigma_cma
-        self.popsize = popsize
-        self.iterations_cma = iterations_cma
+    def optimization_method(self, objective: Callable, x0: Dict) -> OrderedDict:
+        pass
 
     def fit_model(self, init_params=None):
         if init_params is None:
             init_params = self.get_init_params()
 
         objective_func = self.get_objective_func()
-        fitted_params, _ = cma.fmin2(objective_function=objective_func,
-                                     x0=list(init_params.values()),
-                                     restarts=self.restarts,
-                                     sigma0=self.sigma_cma,
-                                     options={'ftarget': -np.Inf, 'popsize': self.popsize,
-                                              'maxfevals': self.popsize * self.iterations_cma})
-        self.fitted_params = OrderedDict([(k, v) for k, v in zip(init_params.keys(), fitted_params)])
+        self.fitted_params = self.optimization_method(objective=objective_func, x0=init_params)
         return self.fitted_params
 
     def get_initial_condition2integrate(self):

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel
-from src.MasterFitter import MasterFitter
+from src.MasterFitters.MasterFitter import MasterFitter
 from src.Models.SIR_model import SIR
 from src.metrics import mse
 
