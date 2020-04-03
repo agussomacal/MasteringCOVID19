@@ -79,7 +79,7 @@ def get_data2model(min_infected, model_vars_map2columns):
     return data
 
 
-def plot_results(country, dict4plot, coefs, model_class):
+def plot_results(country, dict4plot, coefs, model_class, extra_name):
     def plot(ax, d, var_name, col, log=False):
         ax.plot(d['prediction'].index, d['prediction'].values, c=get_cmap('tab10')(col),
                 label='fitted {}'.format(var_name))
@@ -177,7 +177,7 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
         t = data.get_values_of_integration_variable()
         dict4plot = master_fitter.get_data4plot(
             t=np.arange(t.min(), t.max() + (t.max() - t.min()) * extra_future_predict))
-        plot_results(country, dict4plot, coefs, model_class)
+        plot_results(country, dict4plot, coefs, model_class, extra_name)
 
 
 if __name__ == '__main__':
@@ -199,13 +199,13 @@ if __name__ == '__main__':
         model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
         initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
         init_params = OrderedDict(
-            [('a', 4e-4), ('b', 1e-8), ('mu', 0.02)])
+            [('a', 4e-4), ('b', 1e-8), ('gamma1', (1 - 3 * 4e-4) / 7), ('gamma2', (1 - 8 * 0.02) / 20), ('mu', 0.02)])
         # init_params = None
         param_bounds = {
             'a': Bounds(lower=0, upper=1.0/3),
             'b': Bounds(lower=0, upper=1),
-            # 'gamma1': Bounds(lower=0, upper=1.0/20),
-            # 'gamma2': Bounds(lower=0, upper=10),
+            'gamma1': Bounds(lower=0, upper=1.0/7),
+            'gamma2': Bounds(lower=0, upper=1.0/20),
             'mu': Bounds(lower=0, upper=1.0/8),
         }
     else:
