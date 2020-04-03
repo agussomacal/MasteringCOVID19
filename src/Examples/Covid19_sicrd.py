@@ -79,7 +79,7 @@ def get_data2model(min_infected, model_vars_map2columns):
     return data
 
 
-def plot_results(country, dict4plot, coefs):
+def plot_results(country, dict4plot, coefs, model_class):
     def plot(ax, d, var_name, col, log=False):
         ax.plot(d['prediction'].index, d['prediction'].values, c=get_cmap('tab10')(col),
                 label='fitted {}'.format(var_name))
@@ -177,7 +177,7 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
         t = data.get_values_of_integration_variable()
         dict4plot = master_fitter.get_data4plot(
             t=np.arange(t.min(), t.max() + (t.max() - t.min()) * extra_future_predict))
-        plot_results(country, dict4plot, coefs)
+        plot_results(country, dict4plot, coefs, model_class)
 
 
 if __name__ == '__main__':
