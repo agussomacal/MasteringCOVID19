@@ -180,7 +180,7 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
         plot_results(country, dict4plot, coefs)
 
 
-if '__main__' == __name__:
+if __name__ == '__main__':
     extra_name = '_cma'
 
     model_class = SICRD
@@ -192,21 +192,21 @@ if '__main__' == __name__:
     min_infected = 50
 
     bayes_iter = 1000
-    restarts = 1  # 7
+    restarts = 5  # 7
     popsize = 15
 
     if model_class == SICRD:
         model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
         initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
-        # init_params = OrderedDict(
-        #     [('a', 0.4745), ('b', 0.00001), ('gamma1', 0.0147), ('gamma2', 6.9163), ('mu', 0.012)])
-        init_params = None
+        init_params = OrderedDict(
+            [('a', 4e-4), ('b', 1e-8), ('mu', 0.02)])
+        # init_params = None
         param_bounds = {
             'a': Bounds(lower=0, upper=1.0/3),
             'b': Bounds(lower=0, upper=1),
-            'gamma1': Bounds(lower=0, upper=1.0/20),
+            # 'gamma1': Bounds(lower=0, upper=1.0/20),
             # 'gamma2': Bounds(lower=0, upper=10),
-            'mu': Bounds(lower=0, upper=1.0/10),
+            'mu': Bounds(lower=0, upper=1.0/8),
         }
     else:
         raise Exception('No model class with that name.')
