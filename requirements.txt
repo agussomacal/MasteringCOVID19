@@ -2,5 +2,6 @@ numpy
 matplotlib
 pandas
 xlrd
-cma
 scipy
+cma
+hyperopt

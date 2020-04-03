@@ -3,24 +3,34 @@ from collections import OrderedDict
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
+from hyperopt import hp
 
 from src import config
 from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel, CATEGORY_VARIABLE
+from src.MasterFitters.BayesMasterFitter import BayesMasterFitter
 from src.MasterFitters.GeneticMasterFitter import GeneticMasterFitter
 from src.MasterFitters.GradientMasterFitter import GradientMasterFitter
 from src.Models.SIRM import SIRM
 from src.config import check_create_path
 from src.metrics import mse
 
-extra_name = '_grad'
+extra_name = '_bayes'
 MFitter = GradientMasterFitter  # GeneticMasterFitter
 model_class = SIRM
 extra_future_predict = 0.3
 min_infected = 50
 
-contry_pop_dict = {'Italy': 60 * 1e6, 'France': 67 * 1e6, 'Argentina': 40 * 1e6, 'Spain': 47 * 1e6}
+contry_pop_dict = OrderedDict([('Italy', 60 * 1e6), ('Spain', 47 * 1e6), ('France', 67 * 1e6), ('Argentina', 40 * 1e6)])
 model_vars_map2columns = {'R': 'recovered', 'I': 'confirmed', 'M': 'deaths'}
 init_params = OrderedDict([('b', 0.001), ('d', 0.04), ('m', 0.02)])
+init_params_bayes = OrderedDict([
+    ('b', hp.uniform('b', 0.001, 2)),
+    ('d', hp.uniform('d', 0.001, 0.1)),
+    ('m', hp.uniform('m', 0.001, 0.1))
+])
+bayes_iter = 1000
+restarts = 1
+popsize = 10
 initial_condition_dict = {'S': None, 'I': None, 'R': None, 'M': None}
 
 columns_specifications = {'confirmed': MODEL_VARIABLE,
@@ -73,6 +83,7 @@ for country in contry_pop_dict.keys():
                         model_vars_map2columns=model_vars_map2columns)
 
     initial_condition_dict['S'] = contry_pop_dict[country]
+
     master_fitter = GeneticMasterFitter(
         data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
         model_class=model_class,
@@ -80,20 +91,31 @@ for country in contry_pop_dict.keys():
         metric=mse,
         iterations_cma=1000000,
         sigma_cma=1,
-        popsize=15,
-        restarts=5
+        popsize=popsize,
+        restarts=restarts
     )
     coefs = master_fitter.fit_model(init_params=init_params)
-    init_params = coefs#{'b': 0.001, 'd': 0.04, 'm': 0.02}
+    init_params_bayes = OrderedDict([(k, hp.normal(k, np.abs(v), np.abs(v / 5))) for k, v in coefs.items()])
 
-    master_fitter = MFitter(
+    master_fitter = BayesMasterFitter(
         data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
         model_class=model_class,
         initial_condition_dict=initial_condition_dict,
         metric=mse,
-        maxiter=1000
+        iterations=bayes_iter
     )
-    coefs = master_fitter.fit_model(init_params=init_params)
+    coefs = master_fitter.fit_model(init_params=init_params_bayes)
+
+    # init_params = coefs#{'b': 0.001, 'd': 0.04, 'm': 0.02}
+    #
+    # master_fitter = MFitter(
+    #     data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
+    #     model_class=model_class,
+    #     initial_condition_dict=initial_condition_dict,
+    #     metric=mse,
+    #     maxiter=1000
+    # )
+    # coefs = master_fitter.fit_model(init_params=init_params)
 
     t = data.get_values_of_integration_variable()
     dict4plot = master_fitter.get_data4plot(t=np.arange(t.min(), t.max() + (t.max() - t.min()) * extra_future_predict))

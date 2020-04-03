@@ -6,7 +6,7 @@ class ModelBase:
         pass
 
     def get_equation_for_odeint(self):
-        eqparam_names = self.get_eqparam_names(self, without_time=False)
+        eqparam_names = self.get_modelvar_names(self, without_time=False)
 
         def equation_for_odeint(x, t):
             values4eq = list(x) + [t]
@@ -26,16 +26,16 @@ class ModelBase:
     @staticmethod
     def get_modelparam_names(class_model):
         """
-        without self.
+        model parameters
         :param class_model:
         :return:
         """
         return class_model.__init__.__code__.co_varnames[1:class_model.__init__.__code__.co_argcount]
 
     @staticmethod
-    def get_eqparam_names(class_model, without_time=True):
+    def get_modelvar_names(class_model, without_time=True):
         """
-        without self.
+        model variables
         :param class_model:
         :return:
         """

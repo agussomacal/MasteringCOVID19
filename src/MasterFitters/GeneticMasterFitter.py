@@ -5,13 +5,22 @@ import cma
 import numpy as np
 
 from src.DataManager import DataForModel
-from src.MasterFitters.MasterFitter import MasterFitter
+from src.MasterFitters.MasterFitter import MasterFitter, Bounds
+from src.metrics import mse
 
 
 class GeneticMasterFitter(MasterFitter):
-    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, metric, iterations_cma=1000,
-                 sigma_cma=1, popsize=15, restarts=10):
-        super().__init__(data, model_class, initial_condition_dict, metric)
+    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, iterations_cma=1000,
+                 sigma_cma=1, popsize=15, restarts=10, init_params=None, params_bounds: Dict = None,
+                 var_bounds: Dict = None, out_of_bounds_cost=np.Inf, metric=mse):
+        super().__init__(data=data,
+                         model_class=model_class,
+                         initial_condition_dict=initial_condition_dict,
+                         init_params=init_params,
+                         metric=metric,
+                         params_bounds=params_bounds,
+                         var_bounds=var_bounds,
+                         out_of_bounds_cost=out_of_bounds_cost)
         self.restarts = restarts
         self.sigma_cma = sigma_cma
         self.popsize = popsize

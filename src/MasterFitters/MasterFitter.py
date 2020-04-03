@@ -1,60 +1,99 @@
-from collections import OrderedDict
-from typing import Callable, Dict
+from collections import OrderedDict, namedtuple
+from typing import Callable, Dict, Iterable
 
 import matplotlib.pylab as plt
+import numpy as np
 import pandas as pd
 from scipy.integrate import odeint
 
 from src.DataManager import DataForModel
+from src.metrics import mse
+
+Bounds = namedtuple('Bounds', ['lower', 'upper'])
+
+OUT_OF_BOUND_COST = 1e10
 
 
 class MasterFitter:
-    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, metric: Callable):
+    def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, init_params=None,
+                 metric: Callable = mse, params_bounds: Dict = None, var_bounds: Dict = None,
+                 out_of_bounds_cost=OUT_OF_BOUND_COST):
         self.data = data
         self.model_class = model_class
+
         self.initial_condition_dict = initial_condition_dict
+        self.var_bounds = var_bounds
+
+        self.init_params = init_params
+        if self.init_params is None:
+            self.init_params = self.get_init_params()
+        self.params_bounds = params_bounds
+        self.out_of_bounds_cost = out_of_bounds_cost
 
         self.fitted_params = {}
 
         self.metric = metric
 
+    def fit_model(self):
+        objective_func = self.get_objective_func()
+        self.fitted_params = self.optimization_method(objective=objective_func, x0=self.init_params)
+        return self.fitted_params
+
     def optimization_method(self, objective: Callable, x0: Dict) -> OrderedDict:
         pass
 
-    def fit_model(self, init_params=None):
-        if init_params is None:
-            init_params = self.get_init_params()
+    def paramvect2dict(self, params):
+        if isinstance(params, dict):
+            return params
+        elif isinstance(params, Iterable):
+            return OrderedDict(
+                [(k, v) for k, v in zip(self.model_class.get_modelparam_names(self.model_class), params)])
+        else:
+            raise Exception('params must be a lsit or a dict!')
 
-        objective_func = self.get_objective_func()
-        self.fitted_params = self.optimization_method(objective=objective_func, x0=init_params)
-        return self.fitted_params
-
-    def get_initial_condition2integrate(self):
-        initial_condition_dict = self.data.get_initial_condition_for_integration(self.initial_condition_dict)
-        eqparam_names = self.model_class.get_eqparam_names(self.model_class, without_time=True)
-        return [initial_condition_dict[param_name] for param_name in eqparam_names]
-
-    def get_objective_func(self):
-        eqparam_names = self.model_class.get_eqparam_names(self.model_class, without_time=True)
+    def get_objective_func(self) -> Callable:
+        modelvar_names = self.model_class.get_modelvar_names(self.model_class, without_time=True)
         y0 = self.get_initial_condition2integrate()
 
         def obj_func(params):
+            params = self.paramvect2dict(params)
             observed_data = self.data.get_observed_variables(model_var_names_as_columns=True)
-            observed_solution = self.get_particular_solution(y0, params, eqparam_names)[observed_data.columns]
-            return self.metric(observed_solution, observed_data)
+            solution = self.get_particular_solution(y0, params, modelvar_names)
+            observed_solution = solution[observed_data.columns]
+            return self.metric(observed_solution, observed_data) + \
+                   self.penalize_out_of_range(params, self.params_bounds) + \
+                   self.penalize_out_of_range(solution.min().to_dict(), self.var_bounds) + \
+                   self.penalize_out_of_range(solution.max().to_dict(), self.var_bounds)
 
         return obj_func
 
-    def get_particular_solution(self, y0, params, eqparam_names, t=None):
+    def penalize_out_of_range(self, realization_dict, bounds_dict):
+        penalty = 0
+        if bounds_dict is not None:
+            for param_name, param_value in realization_dict.items():
+                if param_name in bounds_dict.keys():
+                    vals = [param_value - bounds_dict[param_name].upper,
+                            bounds_dict[param_name].lower - param_value]
+                    penalty += sum([0 if val < 0 else (1+val) * self.out_of_bounds_cost for val in vals])
+            return penalty
+        return penalty
+
+    def get_initial_condition2integrate(self):
+        initial_condition_dict = self.data.get_initial_condition_for_integration(self.initial_condition_dict)
+        modelvar_names = self.model_class.get_modelvar_names(self.model_class, without_time=True)
+        return [initial_condition_dict[param_name] for param_name in modelvar_names]
+
+    def get_particular_solution(self, y0, params, modelvar_names, t=None):
+        model = self.model_class(**self.paramvect2dict(params))
         t = self.data.get_values_of_integration_variable() if t is None else t
-        solution = odeint(self.model_class(*params).get_equation_for_odeint(), y0=y0, t=t)
-        solution = pd.DataFrame(solution, columns=eqparam_names, index=t)
+        solution = odeint(model.get_equation_for_odeint(), y0=y0, t=t)
+        solution = pd.DataFrame(solution, columns=modelvar_names, index=t)
         return solution
 
     def predict(self, t=None):
-        eqparam_names = self.model_class.get_eqparam_names(self.model_class, without_time=True)
+        modelvar_names = self.model_class.get_modelvar_names(self.model_class, without_time=True)
         y0 = self.get_initial_condition2integrate()
-        solution = self.get_particular_solution(y0, list(self.fitted_params.values()), eqparam_names, t)
+        solution = self.get_particular_solution(y0, list(self.fitted_params.values()), modelvar_names, t)
         return solution
 
     def get_data4plot(self, t=None):
