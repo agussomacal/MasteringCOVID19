@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 from src import config
 from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel, UNUSE_VARIABLE, CATEGORY_VARIABLE
 from src.MasterFitters.MasterFitter import MasterFitter
-from src.Models.SEIRM import SEIRM
+from src.Models.SECRD import SEIRM
 from src.Models.SIR_model import SIR
 from src.config import check_create_path
 from src.metrics import mse

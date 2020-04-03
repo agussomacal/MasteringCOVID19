@@ -10,7 +10,7 @@ from src.DataManager import INTEGRATION_VARIABLE, MODEL_VARIABLE, DataForModel, 
 from src.MasterFitters.BayesMasterFitter import BayesMasterFitter
 from src.MasterFitters.GeneticMasterFitter import GeneticMasterFitter
 from src.MasterFitters.GradientMasterFitter import GradientMasterFitter
-from src.Models.SEIRM import SEIRM
+from src.Models.SECRD import SEIRM
 from src.Models.SIRM import SIRM
 from src.config import check_create_path
 from src.metrics import mse

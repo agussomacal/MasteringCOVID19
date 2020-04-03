@@ -12,6 +12,7 @@ from src.MasterFitters.BayesMasterFitter import BayesMasterFitter
 from src.MasterFitters.GeneticMasterFitter import GeneticMasterFitter
 from src.MasterFitters.GradientMasterFitter import GradientMasterFitter
 from src.MasterFitters.MasterFitter import Bounds, OUT_OF_BOUND_COST
+from src.Models.SECRD import SECRD
 from src.Models.SICRD import SICRD
 from src.config import check_create_path
 from src.metrics import mse
@@ -32,12 +33,7 @@ def get_var_bounds_dict(country):
     }
 
 
-model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
-
-model_class = SICRD
-
-
-def get_data2model(min_infected):
+def get_data2model(min_infected, model_vars_map2columns):
     def preprocess(df, dataname):
         df = df.loc[df['Province/State'].isna(), :]
         df = df.loc[df['Value'] != 0, :]
@@ -83,7 +79,7 @@ def get_data2model(min_infected):
     return data
 
 
-def plot_results(country, dict4plot):
+def plot_results(country, dict4plot, coefs):
     def plot(ax, d, var_name, col, log=False):
         ax.plot(d['prediction'].index, d['prediction'].values, c=get_cmap('tab10')(col),
                 label='fitted {}'.format(var_name))
@@ -114,11 +110,11 @@ def plot_results(country, dict4plot):
 
 
 # ----------------- run model --------------------------def run():
-def run(extra_name, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
-        init_params, param_bounds, bayes_iter):
-    data = get_data2model(min_infected)
+def run(extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
+        init_params, param_bounds, bayes_iter, model_vars_map2columns):
+    data = get_data2model(min_infected, model_vars_map2columns)
 
-    results = {k: [] for k in init_params.keys()}
+    results = {k: [] for k in model_class.get_modelparam_names(model_class)}
     results.update({'country': []})
     for country in country_pop_dict.keys():
         chosen_categories_dict = {'Country/Region': country}
@@ -181,11 +177,14 @@ def run(extra_name, metric, extra_future_predict, min_infected, restarts, popsiz
         t = data.get_values_of_integration_variable()
         dict4plot = master_fitter.get_data4plot(
             t=np.arange(t.min(), t.max() + (t.max() - t.min()) * extra_future_predict))
-        plot_results(country, dict4plot)
+        plot_results(country, dict4plot, coefs)
 
 
 if '__main__' == __name__:
     extra_name = '_cma'
+
+    model_class = SICRD
+
     # metric = lambda x, y: np.log10(mse(x, y))
     metric = mse
 
@@ -196,19 +195,26 @@ if '__main__' == __name__:
     restarts = 1  # 7
     popsize = 15
 
-    initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
-    init_params = OrderedDict([('a', 0.4745), ('b', 0.00001), ('gamma1', 0.0147), ('gamma2', 6.9163), ('mu', 0.012)])
+    if model_class == SICRD:
+        model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
+        initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
+        # init_params = OrderedDict(
+        #     [('a', 0.4745), ('b', 0.00001), ('gamma1', 0.0147), ('gamma2', 6.9163), ('mu', 0.012)])
+        init_params = None
+        param_bounds = {
+            'a': Bounds(lower=0, upper=1.0/3),
+            'b': Bounds(lower=0, upper=1),
+            'gamma1': Bounds(lower=0, upper=1.0/20),
+            # 'gamma2': Bounds(lower=0, upper=10),
+            'mu': Bounds(lower=0, upper=1.0/10),
+        }
+    else:
+        raise Exception('No model class with that name.')
 
-    param_bounds = {
-        'a': Bounds(lower=0, upper=1),
-        'b': Bounds(lower=0, upper=1),
-        'gamma1': Bounds(lower=0, upper=1),
-        'gamma2': Bounds(lower=0, upper=10),
-        'mu': Bounds(lower=0, upper=1),
-    }
+
 
     # init_params_bayes = OrderedDict(
     #     [(k, hp.normal(k, v, (param_bounds[k].upper - param_bounds[k].lower) / 2)) for k, v in init_params.items()])
 
-    run(extra_name, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
-        init_params, param_bounds, bayes_iter)
+    run(extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
+        init_params, param_bounds, bayes_iter, model_vars_map2columns)

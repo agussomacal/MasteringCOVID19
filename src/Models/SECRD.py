@@ -1,11 +1,10 @@
 from src.Models.BaseModels import ModelBase
 
 
-class SICRD(ModelBase):
-    # def __init__(self, a, b, gamma1, gamma2, mu):
-    def __init__(self, a, b, gamma1, mu):
+class SECRD(ModelBase):
+    def __init__(self, a, b, gamma1, gamma2, mu):
         self.gamma1 = gamma1
-        # self.gamma2 = gamma2
+        self.gamma2 = gamma2
         self.mu = mu
         self.a = a
         self.b = b
@@ -26,13 +25,11 @@ class SICRD(ModelBase):
         #         R = R0
         # b = R / Tinc
 
-        gamma2 = (1-3*self.a)/7
         dS = -self.b * S * I
-        dI = self.b * S * I - (self.a + gamma2) * I
+        dI = self.b * S * I - (self.a + self.gamma2) * I
         dC = self.a * I - self.mu * C - self.gamma1 * C
         dM = self.mu * C
         dRD = self.gamma1 * C
-        dRI = gamma2 * I
+        dRI = self.gamma2 * I
 
         return dS, dI, dC, dM, dRD, dRI
-
