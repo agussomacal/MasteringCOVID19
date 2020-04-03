@@ -16,7 +16,6 @@ from src.Models.SICRD import SICRD
 from src.config import check_create_path
 from src.metrics import mse
 
-
 contry_pop_dict = OrderedDict([('Italy', 60 * 1e6), ('Spain', 47 * 1e6), ('France', 67 * 1e6), ('Argentina', 40 * 1e6)])
 
 
@@ -32,7 +31,7 @@ def get_var_bounds_dict(country):
     }
 
 
-extra_name = '_bayes'
+extra_name = '_cma'
 metric = lambda x, y: np.log10(mse(x, y))
 # metric = mse
 
@@ -41,8 +40,8 @@ extra_future_predict = 0.3
 min_infected = 50
 
 bayes_iter = 1000
-restarts = 7
-popsize = 10
+restarts = 1#7
+popsize = 15
 
 model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
 initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
@@ -56,7 +55,8 @@ param_bounds = {
     'mu': Bounds(lower=0, upper=1),
 }
 
-init_params_bayes = OrderedDict([(k, hp.normal(k, v, (param_bounds[k].upper-param_bounds[k].lower)/2)) for k, v in init_params.items()])
+init_params_bayes = OrderedDict(
+    [(k, hp.normal(k, v, (param_bounds[k].upper - param_bounds[k].lower) / 2)) for k, v in init_params.items()])
 # init_params_bayes = OrderedDict([(k, hp.normal(k, np.abs(v), np.abs(v / 5))) for k, v in coefs.items()])
 
 columns_specifications = {'confirmed': MODEL_VARIABLE,
@@ -101,6 +101,8 @@ data2model = data2model.groupby('Country/Region').apply(postprocess)
 data2model = data2model.reset_index()
 
 # ----------------- run model --------------------------
+results = {k: [] for k in init_params.keys()}
+results.update({'country': []})
 for country in contry_pop_dict.keys():
     chosen_categories_dict = {'Country/Region': country}
 
@@ -158,7 +160,8 @@ for country in contry_pop_dict.keys():
 
 
     def plot(ax, d, var_name, col, log=False):
-        ax.plot(d['prediction'].index, d['prediction'].values, c=get_cmap('tab10')(col), label='fitted {}'.format(var_name))
+        ax.plot(d['prediction'].index, d['prediction'].values, c=get_cmap('tab10')(col),
+                label='fitted {}'.format(var_name))
         if 'real data' in d.keys():
             ax.plot(d['real data'].index, d['real data'].values, '.k', label='real data for {}'.format(var_name))
 
@@ -184,3 +187,10 @@ for country in contry_pop_dict.keys():
             '{}/{}_together_{}.png'.format(check_create_path(config.results_dir, model_class.__name__ + extra_name),
                                            country, 'log' if log else ''))
         plt.close('all')
+
+    # results.
+    for k, v in coefs.items():
+        results[k].append(v)
+    results['country'].append(country)
+    pd.DataFrame.from_dict(results).to_csv(
+        '{}/params.csv'.format(check_create_path(config.results_dir, model_class.__name__ + extra_name)))
