@@ -15,3 +15,4 @@ def check_create_path(*args):
 project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 results_dir = check_create_path(project_dir, "results/")
 data_dir = check_create_path(project_dir, "data/")
+models_dir = check_create_path(project_dir, "src", "Models")

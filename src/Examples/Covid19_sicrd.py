@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import subprocess
 
 import pandas as pd
 import numpy as np
@@ -17,8 +18,20 @@ from src.Models.SICRD import SICRD
 from src.config import check_create_path
 from src.metrics import mse
 
+# for bashcommand in [
+#     'wget  -O {}/time_series_covid19_confirmed_global_narrow.csv "https://data.humdata.org/hxlproxy/data/download/time_series_covid19_confirmed_global_narrow.csv?dest=data_edit&filter01=merge&merge-url01=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D1326629740%26single%3Dtrue%26output%3Dcsv&merge-keys01=%23country%2Bname&merge-tags01=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&filter02=merge&merge-url02=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D398158223%26single%3Dtrue%26output%3Dcsv&merge-keys02=%23adm1%2Bname&merge-tags02=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&merge-replace02=on&merge-overwrite02=on&filter03=explode&explode-header-att03=date&explode-value-att03=value&filter04=rename&rename-oldtag04=%23affected%2Bdate&rename-newtag04=%23date&rename-header04=Date&filter05=rename&rename-oldtag05=%23affected%2Bvalue&rename-newtag05=%23affected%2Binfected%2Bvalue%2Bnum&rename-header05=Value&filter06=clean&clean-date-tags06=%23date&filter07=sort&sort-tags07=%23date&sort-reverse07=on&filter08=sort&sort-tags08=%23country%2Bname%2C%23adm1%2Bname&tagger-match-all=on&tagger-default-tag=%23affected%2Blabel&tagger-01-header=province%2Fstate&tagger-01-tag=%23adm1%2Bname&tagger-02-header=country%2Fregion&tagger-02-tag=%23country%2Bname&tagger-03-header=lat&tagger-03-tag=%23geo%2Blat&tagger-04-header=long&tagger-04-tag=%23geo%2Blon&header-row=1&url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_confirmed_global.csv"',
+#     'wget  -O {}/time_series_covid19_deaths_global_narrow.csv "https://data.humdata.org/hxlproxy/data/download/time_series_covid19_deaths_global_narrow.csv?dest=data_edit&filter01=merge&merge-url01=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D1326629740%26single%3Dtrue%26output%3Dcsv&merge-keys01=%23country%2Bname&merge-tags01=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&filter02=merge&merge-url02=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D398158223%26single%3Dtrue%26output%3Dcsv&merge-keys02=%23adm1%2Bname&merge-tags02=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&merge-replace02=on&merge-overwrite02=on&filter03=explode&explode-header-att03=date&explode-value-att03=value&filter04=rename&rename-oldtag04=%23affected%2Bdate&rename-newtag04=%23date&rename-header04=Date&filter05=rename&rename-oldtag05=%23affected%2Bvalue&rename-newtag05=%23affected%2Binfected%2Bvalue%2Bnum&rename-header05=Value&filter06=clean&clean-date-tags06=%23date&filter07=sort&sort-tags07=%23date&sort-reverse07=on&filter08=sort&sort-tags08=%23country%2Bname%2C%23adm1%2Bname&tagger-match-all=on&tagger-default-tag=%23affected%2Blabel&tagger-01-header=province%2Fstate&tagger-01-tag=%23adm1%2Bname&tagger-02-header=country%2Fregion&tagger-02-tag=%23country%2Bname&tagger-03-header=lat&tagger-03-tag=%23geo%2Blat&tagger-04-header=long&tagger-04-tag=%23geo%2Blon&header-row=1&url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_deaths_global.csv"',
+#     'wget  -O {}/time_series_covid19_recovered_global_narrow.csv "https://data.humdata.org/hxlproxy/data/download/time_series_covid19_recovered_global_narrow.csv?dest=data_edit&filter01=merge&merge-url01=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D1326629740%26single%3Dtrue%26output%3Dcsv&merge-keys01=%23country%2Bname&merge-tags01=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&filter02=merge&merge-url02=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2Fe%2F2PACX-1vTglKQRXpkKSErDiWG6ycqEth32MY0reMuVGhaslImLjfuLU0EUgyyu2e-3vKDArjqGX7dXEBV8FJ4f%2Fpub%3Fgid%3D398158223%26single%3Dtrue%26output%3Dcsv&merge-keys02=%23adm1%2Bname&merge-tags02=%23country%2Bcode%2C%23region%2Bmain%2Bcode%2C%23region%2Bsub%2Bcode%2C%23region%2Bintermediate%2Bcode&merge-replace02=on&merge-overwrite02=on&filter03=explode&explode-header-att03=date&explode-value-att03=value&filter04=rename&rename-oldtag04=%23affected%2Bdate&rename-newtag04=%23date&rename-header04=Date&filter05=rename&rename-oldtag05=%23affected%2Bvalue&rename-newtag05=%23affected%2Binfected%2Bvalue%2Bnum&rename-header05=Value&filter06=clean&clean-date-tags06=%23date&filter07=sort&sort-tags07=%23date&sort-reverse07=on&filter08=sort&sort-tags08=%23country%2Bname%2C%23adm1%2Bname&tagger-match-all=on&tagger-default-tag=%23affected%2Blabel&tagger-01-header=province%2Fstate&tagger-01-tag=%23adm1%2Bname&tagger-02-header=country%2Fregion&tagger-02-tag=%23country%2Bname&tagger-03-header=lat&tagger-03-tag=%23geo%2Blat&tagger-04-header=long&tagger-04-tag=%23geo%2Blon&header-row=1&url=https%3A%2F%2Fraw.githubusercontent.com%2FCSSEGISandData%2FCOVID-19%2Fmaster%2Fcsse_covid_19_data%2Fcsse_covid_19_time_series%2Ftime_series_covid19_recovered_global.csv"'
+# ]:
+#
+#     process = subprocess.Popen(bashcommand.format(config.data_dir).split(), stdout=subprocess.PIPE)
+#     output, error = process.communicate()
+
 country_pop_dict = OrderedDict(
     [('Italy', 60 * 1e6), ('Spain', 47 * 1e6), ('France', 67 * 1e6), ('Argentina', 40 * 1e6)])
+
+country_conf_dict = OrderedDict(
+    [('Italy', 40), ('Spain', 40), ('France', 40), ('Argentina', 40)])
 
 
 def get_var_bounds_dict(country):
@@ -110,7 +123,7 @@ def plot_results(country, dict4plot, coefs, model_class, extra_name):
 
 
 # ----------------- run model --------------------------def run():
-def run(extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
+def run(fitter, extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
         init_params, param_bounds, bayes_iter, model_vars_map2columns):
     data = get_data2model(min_infected, model_vars_map2columns)
 
@@ -120,26 +133,28 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
         chosen_categories_dict = {'Country/Region': country}
 
         initial_condition_dict['S'] = country_pop_dict[country]
+        if 't0' in init_params.keys():
+            init_params['t0'] = country_conf_dict[country]
 
-        master_fitter = GeneticMasterFitter(
-            data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
-            model_class=model_class,
-            initial_condition_dict=initial_condition_dict,
-            metric=metric,
-            init_params=init_params,
-            params_bounds=param_bounds,
-            var_bounds=get_var_bounds_dict(country),
-            out_of_bounds_cost=OUT_OF_BOUND_COST,
-            iterations_cma=1000000,
-            sigma_cma=1,
-            popsize=popsize,
-            restarts=restarts
-        )
-        coefs = master_fitter.fit_model()
+        if fitter == GeneticMasterFitter:
+            master_fitter = GeneticMasterFitter(
+                data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
+                model_class=model_class,
+                initial_condition_dict=initial_condition_dict,
+                metric=metric,
+                init_params=init_params,
+                params_bounds=param_bounds,
+                var_bounds=get_var_bounds_dict(country),
+                out_of_bounds_cost=OUT_OF_BOUND_COST,
+                iterations_cma=1000000,
+                sigma_cma=1,
+                popsize=popsize,
+                restarts=restarts
+            )
+            coefs = master_fitter.fit_model()
 
-        if bayes_iter is not None:
-            init_params_bayes = OrderedDict([(k, hp.normal(k, np.abs(v), np.abs(v / 5))) for k, v in coefs.items()])
-
+        elif fitter == BayesMasterFitter:
+            # init_params_bayes = OrderedDict([(k, hp.normal(k, np.abs(v), np.abs(v / 5))) for k, v in coefs.items()])
             master_fitter = BayesMasterFitter(
                 data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
                 model_class=model_class,
@@ -152,19 +167,21 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
                 iterations=bayes_iter
             )
             coefs = master_fitter.fit_model()
-
-        # master_fitter = GradientMasterFitter(
-        #     data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
-        #     model_class=model_class,
-        #     initial_condition_dict=initial_condition_dict,
-        #     metric=metric,
-        #     init_params=init_params,
-        #     params_bounds=param_bounds,
-        #     var_bounds=get_var_bounds_dict(country),
-        #     out_of_bounds_cost=OUT_OF_BOUND_COST,
-        #     maxiter=1000
-        # )
-        # coefs = master_fitter.fit_model()
+        elif fitter == GradientMasterFitter:
+            master_fitter = GradientMasterFitter(
+                data=data.get_data_after_category_specification(chosen_categories_dict=chosen_categories_dict),
+                model_class=model_class,
+                initial_condition_dict=initial_condition_dict,
+                metric=metric,
+                init_params=init_params,
+                params_bounds=param_bounds,
+                var_bounds=get_var_bounds_dict(country),
+                out_of_bounds_cost=OUT_OF_BOUND_COST,
+                maxiter=1000
+            )
+            coefs = master_fitter.fit_model()
+        else:
+            raise Exception('Method {} not implemented.'.format(Fitter))
 
         # ---------- results ----------
         for k, v in coefs.items():
@@ -181,7 +198,8 @@ def run(extra_name, model_class, metric, extra_future_predict, min_infected, res
 
 
 if __name__ == '__main__':
-    extra_name = '_cma'
+    fitter = GeneticMasterFitter # BayesMasterFitter
+    extra_name = str(fitter)
 
     model_class = SICRD
 
@@ -193,28 +211,47 @@ if __name__ == '__main__':
 
     bayes_iter = 1000
     restarts = 5  # 7
-    popsize = 15
+    popsize = 5
 
     if model_class == SICRD:
         model_vars_map2columns = {'RD': 'recovered', 'C': 'confirmed', 'M': 'deaths'}
-        initial_condition_dict = {'S': None, 'I': 5 * min_infected, 'C': min_infected, 'M': None, 'RD': None, 'RI': 0}
+        initial_condition_dict = {
+            'S': None,
+            # 'I': 5 * min_infected,
+            'C': min_infected,
+            'M': None,
+            'RD': None,
+            # 'RI': 0
+        }
         init_params = OrderedDict(
-            [('a', 4e-4), ('b', 1e-8), ('gamma1', (1 - 3 * 4e-4) / 7), ('gamma2', (1 - 8 * 0.02) / 20), ('mu', 0.02)])
+            [
+                # ('a', 4e-4),
+                ('b', 1e-8),
+                ('bfactor', 1),
+                ('gamma1', (1 - 3 * 4e-4) / 7),
+                # ('gamma2', (1 - 8 * 0.02) / 20),
+                ('mu', 0.02),
+                ('t0', 40)
+            ])
         # init_params = None
         param_bounds = {
-            'a': Bounds(lower=0, upper=1.0/3),
+            # 'a': Bounds(lower=0, upper=1.0 / 3 * 2),
             'b': Bounds(lower=0, upper=1),
-            'gamma1': Bounds(lower=0, upper=1.0/7),
-            'gamma2': Bounds(lower=0, upper=1.0/20),
-            'mu': Bounds(lower=0, upper=1.0/8),
+            'bfactor': Bounds(lower=0, upper=1.0),
+            'gamma1': Bounds(lower=0, upper=1.0 / 7 * 2),
+            # 'gamma2': Bounds(lower=0, upper=1.0 / 20 * 2),
+            'mu': Bounds(lower=0, upper=1.0 / 8 * 2),
+            't0': Bounds(lower=20, upper=40)
         }
+
+        init_params_bayes = OrderedDict(
+            [(k, hp.uniform(k, param_bounds[k].lower, param_bounds[k].upper)) for k, v in init_params.items()])
+        # init_params_bayes = OrderedDict(
+        #     [(k, hp.normal(k, v, (param_bounds[k].upper - param_bounds[k].lower) / 2)) for k, v in init_params.items()])
+
     else:
         raise Exception('No model class with that name.')
 
-
-
-    # init_params_bayes = OrderedDict(
-    #     [(k, hp.normal(k, v, (param_bounds[k].upper - param_bounds[k].lower) / 2)) for k, v in init_params.items()])
-
-    run(extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
+    run(fitter,
+        extra_name, model_class, metric, extra_future_predict, min_infected, restarts, popsize, initial_condition_dict,
         init_params, param_bounds, bayes_iter, model_vars_map2columns)

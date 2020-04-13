@@ -17,7 +17,7 @@ OUT_OF_BOUND_COST = 1e10
 class MasterFitter:
     def __init__(self, data: DataForModel, model_class, initial_condition_dict: Dict, init_params=None,
                  metric: Callable = mse, params_bounds: Dict = None, var_bounds: Dict = None,
-                 out_of_bounds_cost=OUT_OF_BOUND_COST):
+                 out_of_bounds_cost=OUT_OF_BOUND_COST, alpha=0.75):
         self.data = data
         self.model_class = model_class
 
@@ -33,6 +33,10 @@ class MasterFitter:
         self.fitted_params = {}
 
         self.metric = metric
+        self.alpha = alpha
+
+    def __str__(self):
+        return str(self.__class__.__name__)
 
     def fit_model(self):
         objective_func = self.get_objective_func()
@@ -60,7 +64,11 @@ class MasterFitter:
             observed_data = self.data.get_observed_variables(model_var_names_as_columns=True)
             solution = self.get_particular_solution(y0, params, modelvar_names)
             observed_solution = solution[observed_data.columns]
-            return self.metric(observed_solution, observed_data) + \
+
+            prediction_error = self.metric(observed_solution, observed_data)
+            derivative_error = self.metric(np.diff(observed_solution), np.diff(observed_data))
+            return self.alpha * prediction_error + \
+                   (1 - self.alpha) * derivative_error + \
                    self.penalize_out_of_range(params, self.params_bounds) + \
                    self.penalize_out_of_range(solution.min().to_dict(), self.var_bounds) + \
                    self.penalize_out_of_range(solution.max().to_dict(), self.var_bounds)
@@ -68,13 +76,28 @@ class MasterFitter:
         return obj_func
 
     def penalize_out_of_range(self, realization_dict, bounds_dict):
+        """
+        Wall+linear penalization
+                ......
+               /
+              /
+             /   <- linear with slope out_of_bounds_cost
+            /
+            |   <- wall out_of_bounds_cost
+        ____|
+
+
+        :param realization_dict:
+        :param bounds_dict:
+        :return:
+        """
         penalty = 0
         if bounds_dict is not None:
             for param_name, param_value in realization_dict.items():
                 if param_name in bounds_dict.keys():
                     vals = [param_value - bounds_dict[param_name].upper,
                             bounds_dict[param_name].lower - param_value]
-                    penalty += sum([0 if val < 0 else (1+val) * self.out_of_bounds_cost for val in vals])
+                    penalty += sum([0 if val < 0 else (1 + val) * self.out_of_bounds_cost for val in vals])
             return penalty
         return penalty
 

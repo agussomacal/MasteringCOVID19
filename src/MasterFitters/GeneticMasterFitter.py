@@ -30,6 +30,7 @@ class GeneticMasterFitter(MasterFitter):
         fitted_params, _ = cma.fmin2(objective_function=objective,
                                      x0=list(x0.values()),
                                      restarts=self.restarts,
+                                     restart_from_best=True,
                                      sigma0=self.sigma_cma,
                                      options={'ftarget': -np.Inf, 'popsize': self.popsize,
                                               'maxfevals': self.popsize * self.iterations_cma})
